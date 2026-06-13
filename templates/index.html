@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentBridge - Doctor-Patient Communication</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Screen 1: Language Selection -->
+        <div id="screen-1" class="screen active">
+            <div class="screen-content">
+                <div class="header">
+                    <h1>🦷 DentBridge</h1>
+                    <p class="subtitle">Doctor-Patient Communication Platform</p>
+                </div>
+                
+                <div class="language-selection">
+                    <h2>Step 1: Select Patient's Language</h2>
+                    <p class="instruction">Doctor, please select the patient's preferred language for explanation</p>
+                    
+                    <div class="language-grid">
+                        <button class="language-btn" data-lang="hindi">🇮🇳 Hindi</button>
+                        <button class="language-btn" data-lang="marathi">🇮🇳 Marathi</button>
+                        <button class="language-btn" data-lang="punjabi">🇮🇳 Punjabi</button>
+                        <button class="language-btn" data-lang="telugu">🇮🇳 Telugu</button>
+                        <button class="language-btn" data-lang="tamil">🇮🇳 Tamil</button>
+                        <button class="language-btn" data-lang="bengali">🇮🇳 Bengali</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Doctor Input -->
+        <div id="screen-2" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Step 2: Enter Patient Case Details</h2>
+                    <button class="back-btn" onclick="goToScreen(1)">← Back</button>
+                </div>
+                
+                <div class="doctor-input-form">
+                    <div class="microphone-section">
+                        <button id="mic-btn" class="mic-button">
+                            <span class="mic-icon">🎤</span>
+                            <span class="mic-text">Click to Speak</span>
+                        </button>
+                        <p class="mic-instruction">Hello Doctor, please tell me the case</p>
+                    </div>
+
+                    <div class="form-divider">OR Type Details Below:</div>
+
+                    <div class="form-group">
+                        <label for="chief-complaint">Chief Complaint:</label>
+                        <textarea id="chief-complaint" placeholder="What is the patient's main complaint?" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="diagnosis">Diagnosis:</label>
+                        <textarea id="diagnosis" placeholder="What is your diagnosis?" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="treatment">Treatment Plan:</label>
+                        <textarea id="treatment" placeholder="What treatment will be done?" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="appointments">Number of Appointments:</label>
+                            <input type="number" id="appointments" placeholder="e.g., 3" min="1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cost">Treatment Cost:</label>
+                        <input type="text" id="cost" placeholder="e.g., ₹3000-₹5000 depending on crown material" required>
+                        <small style="color: var(--text-secondary);">Enter a cost or cost range</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="medications-needed">Medications Required:</label>
+                        <div class="medication-toggle">
+                            <select id="medications-needed" onchange="toggleMedicationField()">
+                                <option value="">Select option</option>
+                                <option value="needed">Needed</option>
+                                <option value="not-needed">Not Needed</option>
+                            </select>
+                        </div>
+                        <textarea id="medications" placeholder="Specify why medications are needed (e.g., needed for pain and infection)" rows="2" style="display: none;"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="follow-up">Follow-up Instructions:</label>
+                        <textarea id="follow-up" placeholder="What should the patient do after treatment?" rows="2"></textarea>
+                    </div>
+
+                    <button class="proceed-btn" id="proceed-btn-2">Proceed to Patient Explanation →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Patient Explanation -->
+        <div id="screen-3" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Step 3: Patient Explanation</h2>
+                    <button class="back-btn" onclick="goToScreen(2)">← Back</button>
+                </div>
+
+                <div class="patient-section">
+                    <div class="greeting" id="greeting"></div>
+
+                    <div class="tooth-diagrams-container">
+                        <!-- Cavity/Restoration Diagram -->
+                        <div class="tooth-diagram cavity-diagram" id="cavity-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="20" y="10" width="100" height="90" rx="8" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="50,100 90,100 85,150 55,150" fill="white" stroke="black" stroke-width="2"/>
+                                        <circle cx="70" cy="50" r="15" fill="#8B4513" opacity="0.7"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Cavity</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="20" y="10" width="100" height="90" rx="8" fill="#F0F0F0" stroke="black" stroke-width="2"/>
+                                        <polygon points="50,100 90,100 85,150 55,150" fill="white" stroke="black" stroke-width="2"/>
+                                        <path d="M 60 50 L 80 50 L 75 70 L 65 70 Z" fill="#FFD700" stroke="black" stroke-width="1"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Filled</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Root Canal Diagram -->
+                        <div class="tooth-diagram root-canal-diagram" id="root-canal-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="20" y="10" width="100" height="90" rx="8" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="50,100 90,100 85,150 55,150" fill="white" stroke="black" stroke-width="2"/>
+                                        <circle cx="70" cy="50" r="12" fill="none" stroke="black" stroke-width="1"/>
+                                        <circle cx="70" cy="50" r="8" fill="#FF4444"/>
+                                        <polygon points="70,115 70,150" stroke="#FF6666" stroke-width="2" fill="none"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Infected</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="20" y="10" width="100" height="90" rx="8" fill="#E8E8E8" stroke="black" stroke-width="2"/>
+                                        <polygon points="50,100 90,100 85,150 55,150" fill="white" stroke="black" stroke-width="2"/>
+                                        <circle cx="70" cy="50" r="12" fill="none" stroke="black" stroke-width="1"/>
+                                        <circle cx="70" cy="50" r="8" fill="#E8D4B8"/>
+                                        <polygon points="70,115 70,150" stroke="#999999" stroke-width="2" fill="none"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Sealed</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scaling Diagram -->
+                        <div class="tooth-diagram scaling-diagram" id="scaling-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="15" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="55" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="95" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="15,90 45,90 40,130 20,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="55,90 85,90 80,130 60,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="95,90 125,90 120,130 100,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <path d="M 10 100 Q 70 95 130 100" stroke="#CCCC00" stroke-width="3" fill="none"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Tartar</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="15" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="55" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="95" y="20" width="30" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="15,90 45,90 40,130 20,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="55,90 85,90 80,130 60,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="95,90 125,90 120,130 100,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <path d="M 10 100 Q 70 95 130 100" stroke="#00AA00" stroke-width="2" fill="none"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Clean</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Extraction Diagram -->
+                        <div class="tooth-diagram extraction-diagram" id="extraction-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="40" y="20" width="60" height="80" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="40,100 100,100 90,140 50,140" fill="white" stroke="black" stroke-width="2"/>
+                                        <path d="M 50 40 L 65 35 L 80 40 L 75 60 L 65 65 L 55 60 Z" stroke="black" stroke-width="1" fill="#FFE4E1"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Damaged</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <line x1="30" y1="80" x2="110" y2="80" stroke="#FF9999" stroke-width="3" stroke-dasharray="5,5"/>
+                                        <text x="70" y="50" text-anchor="middle" font-size="24">-</text>
+                                        <polygon points="40,100 100,100 90,140 50,140" fill="#FFE4CC" stroke="#FF9999" stroke-width="2" stroke-dasharray="5,5"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Extracted</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Crown Diagram -->
+                        <div class="tooth-diagram crown-diagram" id="crown-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <path d="M 30 40 L 45 25 L 60 35 L 75 25 L 90 40 L 85 90 L 35 90 Z" fill="white" stroke="black" stroke-width="2"/>
+                                        <path d="M 40 60 L 65 50 L 70 75 L 50 80 Z" stroke="black" stroke-width="1" fill="#FFB6C1"/>
+                                        <polygon points="35,90 85,90 80,130 40,130" fill="white" stroke="black" stroke-width="2"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Broken</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <path d="M 25 35 L 45 20 L 70 25 L 95 20 L 115 35 L 110 95 L 30 95 Z" fill="#C0C0C0" stroke="#808080" stroke-width="2"/>
+                                        <path d="M 30 40 L 50 30 L 70 35 L 90 30 L 110 40" stroke="#A9A9A9" stroke-width="1" fill="none"/>
+                                        <polygon points="30,95 110,95 105,135 35,135" fill="white" stroke="black" stroke-width="2"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Crowned</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Braces Diagram -->
+                        <div class="tooth-diagram braces-diagram" id="braces-diagram" style="display:none;">
+                            <div class="diagram-row">
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="10" y="30" width="25" height="60" fill="white" stroke="black" stroke-width="2" transform="rotate(-15 22 60)"/>
+                                        <rect x="50" y="25" width="25" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="90" y="30" width="25" height="60" fill="white" stroke="black" stroke-width="2" transform="rotate(15 102 60)"/>
+                                        <polygon points="12,90 25,95 50,100 75,100 100,95 113,90" fill="none" stroke="red" stroke-width="2" stroke-dasharray="3,3"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">BEFORE: Crooked</text>
+                                    </svg>
+                                </div>
+                                <div class="diagram-arrow">→</div>
+                                <div class="diagram-col">
+                                    <svg viewBox="0 0 140 180" class="tooth-svg-small">
+                                        <rect x="10" y="30" width="25" height="60" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="50" y="25" width="25" height="70" fill="white" stroke="black" stroke-width="2"/>
+                                        <rect x="90" y="30" width="25" height="60" fill="white" stroke="black" stroke-width="2"/>
+                                        <polygon points="12,90 25,95 50,100 75,100 100,95 113,90" fill="none" stroke="#4169E1" stroke-width="2"/>
+                                        <circle cx="22" cy="90" r="3" fill="#4169E1"/>
+                                        <circle cx="40" cy="92" r="3" fill="#4169E1"/>
+                                        <circle cx="62" cy="95" r="3" fill="#4169E1"/>
+                                        <circle cx="85" cy="92" r="3" fill="#4169E1"/>
+                                        <circle cx="103" cy="90" r="3" fill="#4169E1"/>
+                                        <text x="70" y="170" text-anchor="middle" font-size="12" font-weight="bold">AFTER: Aligned</text>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="diagram-label" id="diagram-label">Visual representation of treatment</p>
+                    </div>
+
+                    <div class="explanation-box" id="explanation-box">
+                        <div class="loading">Loading explanation...</div>
+                    </div>
+
+                    <div class="audio-controls">
+                        <button id="play-audio-btn" class="audio-btn">🔊 Listen in Your Language</button>
+                    </div>
+
+                    <button class="understood-btn" id="understood-btn">✓ I Understand</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Patient Questions -->
+        <div id="screen-4" class="screen">
+            <div class="screen-content">
+                <div class="header">
+                    <h2>Step 4: Ask Your Questions</h2>
+                    <button class="back-btn" onclick="goToScreen(3)">← Back</button>
+                </div>
+
+                <div class="qa-section">
+                    <div class="questions-counter">
+                        <span id="questions-remaining">5</span> questions remaining
+                    </div>
+
+                    <div class="question-input-area" id="question-input-area">
+                        <button id="patient-mic-btn" class="mic-button">
+                            <span class="mic-icon">🎤</span>
+                            <span class="mic-text">Speak Question</span>
+                        </button>
+                        <p class="mic-instruction">Ask your question in your language</p>
+
+                        <div class="form-divider">OR Type Your Question:</div>
+
+                        <textarea id="patient-question" placeholder="Write your question here..." rows="3"></textarea>
+                        <button class="ask-btn" id="ask-btn">Ask Question</button>
+                    </div>
+
+                    <div class="qa-history" id="qa-history"></div>
+
+                    <div id="qa-complete-msg" class="hidden qa-complete-message">
+                        <h3>✓ All 5 Questions Asked!</h3>
+                        <p>Thank you for your questions. Let's proceed to the closing.</p>
+                        <button class="proceed-btn" onclick="goToScreen(5)">Continue →</button>
+                    </div>
+
+                    <div class="qa-footer">
+                        <button class="skip-btn" id="skip-btn" onclick="goToScreen(5)">Skip to Finish →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Thank You -->
+        <div id="screen-5" class="screen">
+            <div class="screen-content">
+                <div class="thank-you-section">
+                    <div class="thank-you-icon">🙏</div>
+                    <h2>Thank You!</h2>
+                    
+                    <div class="closing-message" id="closing-message">
+                        <div class="loading">Loading closing message...</div>
+                    </div>
+
+                    <div class="contact-info">
+                        <h3>Need to Contact Us?</h3>
+                        <p>📞 Call: +91-XXXX-XXXX-XX</p>
+                        <p>📧 Email: support@dentbridge.com</p>
+                    </div>
+
+                    <button class="restart-btn" onclick="restartApp()">Start New Session</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
