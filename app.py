@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AzureOpenAI, OpenAI
 import httpx
 from datetime import datetime, timedelta
 import uuid
@@ -15,24 +15,47 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = os.urandom(24)
 
-# Configure GitHub Models client with explicit httpx client
+# ─────────────────────────────────────────────
+# Microsoft Azure AI Foundry - Intelligence Layer
+# Falls back to GitHub Models (also Azure-hosted) if Foundry creds not set
+# ─────────────────────────────────────────────
+AZURE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_KEY = os.getenv("AZURE_OPENAI_KEY", "")
+AZURE_DEPLOYMENT = os.getenv("AZURE_DEPLOYMENT_NAME", "gpt-4o")
+
 try:
-    http_client = httpx.Client(
-        timeout=30.0,
-        limits=httpx.Limits(max_connections=100)
-    )
-    client = OpenAI(
-        api_key=os.getenv('OPENAI_API_KEY'),
-        base_url="https://models.inference.ai.azure.com",
-        http_client=http_client
-    )
+    if AZURE_ENDPOINT and AZURE_KEY:
+        # Primary: Azure AI Foundry
+        client = AzureOpenAI(
+            azure_endpoint=AZURE_ENDPOINT,
+            api_key=AZURE_KEY,
+            api_version="2024-12-01-preview",
+            http_client=httpx.Client(
+                timeout=30.0,
+                limits=httpx.Limits(max_connections=100)
+            )
+        )
+        MODEL = AZURE_DEPLOYMENT
+        print("Using Azure AI Foundry (Microsoft Intelligence Layer)")
+    else:
+        # Fallback: GitHub Models (Microsoft Azure AI Inference API)
+        client = OpenAI(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            base_url="https://models.inference.ai.azure.com",
+            http_client=httpx.Client(
+                timeout=30.0,
+                limits=httpx.Limits(max_connections=100)
+            )
+        )
+        MODEL = "gpt-4o"
+        print("Using GitHub Models (Microsoft Azure AI Inference API - fallback)")
 except Exception as e:
-    print(f"Error initializing OpenAI client: {e}")
-    # Fallback initialization
+    print(f"Error initializing client: {e}")
     client = OpenAI(
         api_key=os.getenv('OPENAI_API_KEY'),
         base_url="https://models.inference.ai.azure.com"
     )
+    MODEL = "gpt-4o"
 
 # Language mappings
 LANGUAGES = {
@@ -90,27 +113,7 @@ def parse_doctor_input():
     if not transcript:
         return jsonify({'error': 'No transcript provided'}), 400
     
-    # Use AI to parse the doctor's input
-    prompt = f"""Parse the following doctor's input and extract the structured information. Return a JSON response with these fields (only include fields that are present in the text):
-    
-Doctor's input: "{transcript}"
-
-Extract and return only valid fields from this JSON structure (omit fields not mentioned):
-{{
-    "chief_complaint": "patient's main complaint or symptoms",
-    "diagnosis": "the diagnosis",
-    "treatment": "the treatment plan",
-    "cost": "cost in numbers only (e.g., 5000)",
-    "appointments": "number of appointments (numbers only)",
-    "medications": "medications to be taken",
-    "follow_up": "follow-up instructions"
-}}
-
-Return ONLY valid JSON, no other text."""
-
-    try:
-        # More detailed prompt to help parsing
-        detailed_prompt = f"""You are a medical data parser. Analyze this doctor's input carefully and extract structured information.
+    detailed_prompt = f"""You are a medical data parser. Analyze this doctor's input carefully and extract structured information.
 
 Doctor's input: "{transcript}"
 
@@ -135,9 +138,10 @@ Return ONLY a valid JSON response with these exact fields (use empty string if n
 }}
 
 IMPORTANT: Return ONLY valid JSON with no additional text."""
-        
+
+    try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": "You are a medical data parser. Extract information from doctor's speech and return ONLY valid JSON with no explanation."},
                 {"role": "user", "content": detailed_prompt}
@@ -148,7 +152,7 @@ IMPORTANT: Return ONLY valid JSON with no additional text."""
         
         result_text = response.choices[0].message.content.strip()
         
-        # Clean up the response - remove markdown code blocks if present
+        # Clean up markdown code blocks if present
         if result_text.startswith('```json'):
             result_text = result_text[7:]
         if result_text.startswith('```'):
@@ -157,27 +161,16 @@ IMPORTANT: Return ONLY valid JSON with no additional text."""
             result_text = result_text[:-3]
         result_text = result_text.strip()
         
-        # Try to parse the JSON response
         parsed_data = json.loads(result_text)
         
-        # Clean up the parsed data
         if 'cost' in parsed_data and parsed_data['cost']:
-            # Extract only numbers from cost
             cost_match = re.search(r'\d+', str(parsed_data['cost']))
-            if cost_match:
-                parsed_data['cost'] = cost_match.group()
-            else:
-                parsed_data['cost'] = ''
+            parsed_data['cost'] = cost_match.group() if cost_match else ''
         
         if 'appointments' in parsed_data and parsed_data['appointments']:
-            # Extract only numbers from appointments
             appt_match = re.search(r'\d+', str(parsed_data['appointments']))
-            if appt_match:
-                parsed_data['appointments'] = appt_match.group()
-            else:
-                parsed_data['appointments'] = ''
+            parsed_data['appointments'] = appt_match.group() if appt_match else ''
         
-        # Ensure all fields are present
         for field in ['chief_complaint', 'diagnosis', 'treatment', 'cost', 'appointments', 'medications', 'follow_up']:
             if field not in parsed_data:
                 parsed_data[field] = ''
@@ -185,7 +178,6 @@ IMPORTANT: Return ONLY valid JSON with no additional text."""
         return jsonify(parsed_data)
     except Exception as e:
         print(f"Error parsing doctor input: {str(e)}")
-        # Return partial data if parsing fails
         return jsonify({
             'chief_complaint': transcript[:200],
             'diagnosis': '',
@@ -230,7 +222,6 @@ def generate_explanation():
     language = sessions_data[session_id]['language']
     doctor_info = sessions_data[session_id]['doctor_input']
     
-    # Create prompt for AI
     prompt = f"""You are a helpful medical assistant explaining a patient's dental case in simple, non-medical language in {LANGUAGES[language]}.
 
 Doctor's Information:
@@ -255,7 +246,7 @@ Make it warm, reassuring, and easy to understand. Use simple words that a patien
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": f"You are a compassionate dental assistant. Always respond in {LANGUAGES[language]} with simple, non-medical language."},
                 {"role": "user", "content": prompt}
@@ -283,7 +274,6 @@ def patient_question():
     if session_id not in sessions_data:
         return jsonify({'error': 'Invalid session'}), 400
     
-    # Check question limit
     if sessions_data[session_id]['questions_count'] >= sessions_data[session_id]['max_questions']:
         return jsonify({
             'error': 'Maximum questions reached',
@@ -293,7 +283,6 @@ def patient_question():
     language = sessions_data[session_id]['language']
     doctor_info = sessions_data[session_id]['doctor_input']
     
-    # Create context-aware prompt
     prompt = f"""A patient has asked the following question about their dental case in {LANGUAGES[language]}:
 
 Question: {question}
@@ -307,7 +296,7 @@ Please provide a helpful, reassuring answer in {LANGUAGES[language]} using simpl
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": f"You are a compassionate dental assistant. Always respond in {LANGUAGES[language]} with simple, non-medical language. Be warm and reassuring."},
                 {"role": "user", "content": prompt}
@@ -353,7 +342,7 @@ Keep it short (2-3 sentences) and in very simple language in {LANGUAGES[language
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": f"You are a warm, compassionate dental assistant. Always respond in {LANGUAGES[language]}."},
                 {"role": "user", "content": prompt}
@@ -381,8 +370,6 @@ def text_to_speech():
     if not text:
         return jsonify({'error': 'No text provided'}), 400
     
-    # For now, we'll return a placeholder
-    # In production, integrate with Google Cloud Text-to-Speech or similar
     return jsonify({
         'success': True,
         'message': 'Text-to-speech ready (integration with Google Cloud TTS recommended)',
@@ -393,10 +380,13 @@ def text_to_speech():
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'healthy'})
+    return jsonify({
+        'status': 'healthy',
+        'intelligence_layer': 'Azure AI Foundry (gpt-4o)' if (AZURE_ENDPOINT and AZURE_KEY) else 'GitHub Models - Microsoft Azure AI Inference API'
+    })
+
 @app.route('/api/tts-url', methods=['POST'])
 def get_tts_url():
-    import re
     import urllib.parse
     data = request.json
     text = data.get('text', '')
@@ -420,5 +410,6 @@ def get_tts_url():
     url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={encoded_text}&tl={lang_code}&client=tw-ob"
     
     return jsonify({'success': True, 'url': url})
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
