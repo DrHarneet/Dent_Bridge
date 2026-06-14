@@ -141,6 +141,17 @@ http://localhost:5000
 
 ---
 
+## 🧠 Microsoft Intelligence Layer
+
+Dent_Bridge integrates **Azure AI Foundry** as its core intelligence layer.
+
+- **Primary:** Azure AI Foundry (AzureOpenAI client → GPT-4o deployment)
+- **Fallback:** Microsoft Azure AI Inference API via GitHub Models (also Azure-hosted)
+- All AI inference runs on **Microsoft Azure infrastructure**
+- Client initialized via `AzureOpenAI` SDK with Foundry endpoint + API version `2024-12-01-preview`
+
+> The app auto-detects available credentials and routes to the appropriate Microsoft AI service.
+
 ## 👩‍⚕️ About the Creator
 
 **Dr. Harneet Kaur Kalsi**
@@ -163,3 +174,4 @@ Participant: Dr. Harneet Kaur Kalsi | Microsoft Learn: harneetkaurkalsi-0485 | G
 
 ## ⚠️ Disclaimer
 DentBridge is a patient education and communication tool. It does not provide medical diagnosis or replace professional dental advice. All clinical decisions are made by the treating dentist.
+
